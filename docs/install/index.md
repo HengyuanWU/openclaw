@@ -199,11 +199,14 @@ Deploy OpenClaw on a cloud server or VPS:
   </Card>
 </CardGroup>
 
-## Update, migrate, or uninstall
+## Update, extend, migrate, or uninstall
 
-<CardGroup cols={3}>
+<CardGroup cols={4}>
   <Card title="Updating" href="/install/updating" icon="refresh-cw">
     Keep OpenClaw up to date.
+  </Card>
+  <Card title="LLM provider SOP" href="/install/llm-provider-sop" icon="cpu">
+    Add a new model API or relay and prove it works.
   </Card>
   <Card title="Migrating" href="/install/migrating" icon="arrow-right">
     Move to a new machine.

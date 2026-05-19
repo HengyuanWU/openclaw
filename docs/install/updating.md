@@ -8,6 +8,8 @@ title: "Updating"
 
 Keep OpenClaw up to date.
 
+If you are adding a new model API or relay instead of updating OpenClaw itself, use the [LLM provider onboarding SOP](/install/llm-provider-sop).
+
 ## Recommended: `openclaw update`
 
 The fastest way to update. It detects your install type (npm or git), fetches the latest version, runs `openclaw doctor`, and restarts the gateway.
