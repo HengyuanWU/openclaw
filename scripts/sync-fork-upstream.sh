@@ -6,6 +6,7 @@ UPSTREAM_REMOTE="upstream"
 MAIN_BRANCH="main"
 CUSTOM_BRANCH=""
 DRY_RUN=0
+ORIGINAL_BRANCH=""
 
 usage() {
   cat <<'USAGE'
@@ -39,6 +40,31 @@ USAGE
 die() {
   echo "$*" >&2
   exit 1
+}
+
+restore_original_branch() {
+  local exit_code=$?
+  local current_branch=""
+
+  if [[ "$exit_code" -eq 0 || -z "$ORIGINAL_BRANCH" ]]; then
+    return 0
+  fi
+
+  if [[ -d "$(git rev-parse --git-path rebase-merge)" || -d "$(git rev-parse --git-path rebase-apply)" ]]; then
+    current_branch="$(git rev-parse --abbrev-ref HEAD 2>/dev/null || true)"
+    echo "Sync failed during rebase; staying on ${current_branch:-the current branch} for manual resolution." >&2
+    trap - EXIT
+    exit "$exit_code"
+  fi
+
+  current_branch="$(git rev-parse --abbrev-ref HEAD 2>/dev/null || true)"
+  if [[ -n "$current_branch" && "$current_branch" != "$ORIGINAL_BRANCH" ]]; then
+    git switch "$ORIGINAL_BRANCH" >/dev/null 2>&1 || true
+    echo "Sync failed; switched back to $ORIGINAL_BRANCH." >&2
+  fi
+
+  trap - EXIT
+  exit "$exit_code"
 }
 
 run_cmd() {
@@ -85,6 +111,8 @@ while [[ $# -gt 0 ]]; do
 done
 
 git rev-parse --show-toplevel >/dev/null 2>&1 || die "Run this script inside a Git repository."
+ORIGINAL_BRANCH="$(git rev-parse --abbrev-ref HEAD)"
+trap restore_original_branch EXIT
 
 if [[ -z "$CUSTOM_BRANCH" ]]; then
   CUSTOM_BRANCH="$(git rev-parse --abbrev-ref HEAD)"
@@ -99,6 +127,7 @@ git show-ref --verify --quiet "refs/heads/$CUSTOM_BRANCH" || die "Missing local 
 
 [[ -z "$(git status --short)" ]] || die "Working tree must be clean before syncing."
 
+run_cmd git push --dry-run "$ORIGIN_REMOTE" "$MAIN_BRANCH"
 run_cmd git switch "$MAIN_BRANCH"
 run_cmd git fetch "$UPSTREAM_REMOTE"
 run_cmd git merge --ff-only "$UPSTREAM_REMOTE/$MAIN_BRANCH"

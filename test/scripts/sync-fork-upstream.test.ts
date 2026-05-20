@@ -111,4 +111,16 @@ describe("scripts/sync-fork-upstream.sh", () => {
     );
     expect(git(localRepo, "show", "--quiet", "--format=%s", "HEAD")).toBe("custom v2");
   });
+
+  it("fails before branch switching when origin push auth is unavailable", () => {
+    const { localRepo } = createSeededRemotePair();
+    const customBranch = "customizations";
+
+    git(localRepo, "switch", "-c", customBranch);
+    createCommit(localRepo, "custom change", "custom.txt", "local-only\n");
+    git(localRepo, "remote", "set-url", "origin", path.join(localRepo, "missing-origin.git"));
+
+    expect(() => run(localRepo, "bash", [scriptPath, "--custom-branch", customBranch])).toThrow();
+    expect(git(localRepo, "rev-parse", "--abbrev-ref", "HEAD")).toBe(customBranch);
+  });
 });
