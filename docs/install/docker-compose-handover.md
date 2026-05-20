@@ -14,7 +14,7 @@ For routine upgrades, follow [Docker Compose Update SOP](/install/docker-update-
 
 ## Snapshot timestamp
 
-- Snapshot captured on **April 5, 2026 (UTC+8)**.
+- Snapshot captured on **May 19, 2026 (UTC+8)**.
 - Runtime should always be re-verified before making changes. Do not assume this snapshot is still current.
 
 ## Live deployment baseline (current handover)
@@ -37,8 +37,8 @@ Use this as the first-pass truth when onboarding a new maintainer.
 ### Image and version baseline
 
 - Runtime image: `openclaw:local`
-- OCI version label at snapshot time: `2026.4.4`
-- Node runtime in container env: `22.22.1`
+- OCI version label at snapshot time: `2026.5.12`
+- Node runtime in container env: `24.14.0`
 
 ### Network and exposed ports
 
@@ -49,8 +49,9 @@ Use this as the first-pass truth when onboarding a new maintainer.
 
 ### Persistent data paths
 
-- Named external volume: `openclaw_config_data` mounted at `/home/node/.openclaw`
-- Named external volume: `openclaw_workspace_data` mounted at `/home/node/.openclaw/workspace`
+- Host bind mount: `/home/node/.openclaw:/home/node/.openclaw`
+- Host bind mount: `/home/node/.openclaw/workspace:/home/node/.openclaw/workspace`
+- When sandbox mode is enabled, avoid named volumes for these paths. Sibling sandbox containers mount host paths, so named volumes can leave sandbox `/workspace` empty even when the gateway container itself can see files.
 
 ### Runtime config highlights (redacted)
 
@@ -110,9 +111,12 @@ docker compose -f /data/compose/openclaw/docker-compose.yml exec -T openclaw-gat
    - `docker compose ... run --rm -T openclaw-cli channels status --probe`
 4. Review latest gateway logs for crash/restart loops:
    - `docker compose ... logs --tail=200 openclaw-gateway`
-5. Validate persistent volumes are attached:
+5. Validate persistent bind mounts are attached and keep host-path parity for sandboxing:
    - `docker inspect openclaw-openclaw-gateway-1 --format '{{json .Mounts}}'`
-6. Check plugin/channel configuration in `/home/node/.openclaw/openclaw.json` (inside container) with secrets redacted before sharing.
+   - expected binds include `/home/node/.openclaw -> /home/node/.openclaw` and `/home/node/.openclaw/workspace -> /home/node/.openclaw/workspace`
+6. If a sandboxed session shows empty `/workspace` or missing `skills/*/SKILL.md`, inspect the host sandbox tree before debugging agents:
+   - `find /home/node/.openclaw/sandboxes -maxdepth 2 -mindepth 1 | sed -n '1,80p'`
+7. Check plugin/channel configuration in `/home/node/.openclaw/openclaw.json` (inside container) with secrets redacted before sharing.
 
 ## Update workflow for this handover page
 

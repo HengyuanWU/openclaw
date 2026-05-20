@@ -270,6 +270,44 @@ pnpm install && pnpm build
 openclaw gateway restart
 ```
 
+## Keep a private fork in sync with upstream
+
+If you keep private changes in a long-lived fork branch, keep `main` clean and
+replay your custom branch on top of the latest upstream `main`.
+
+Set up the remotes once:
+
+```bash
+git remote rename origin upstream
+git remote add origin https://github.com/<your-user>/openclaw.git
+```
+
+Then run the sync helper from your clone:
+
+```bash
+scripts/sync-fork-upstream.sh --custom-branch <your-custom-branch>
+```
+
+The script automates this core sequence:
+
+```bash
+git switch main
+git fetch upstream
+git merge --ff-only upstream/main
+git push origin main
+
+git switch <your-custom-branch>
+git rebase main
+git push --force-with-lease origin <your-custom-branch>
+```
+
+If the custom branch is being published to the fork for the first time, the
+script uses `git push -u origin <your-custom-branch>` instead of
+`--force-with-lease`. If the branch already exists on the fork, the script
+refreshes that branch tip first and then uses `--force-with-lease`.
+
+Use `--dry-run` to print the commands before executing them.
+
 To return to latest: `git checkout main && git pull`.
 
 ## If you are stuck

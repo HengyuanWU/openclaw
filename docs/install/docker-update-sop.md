@@ -52,6 +52,15 @@ Run this once when adopting this SOP:
 4. Ensure Compose gateway service keeps these lines enabled:
    - mount: `/var/run/docker.sock:/var/run/docker.sock`
    - `group_add: ["${DOCKER_GID:-999}"]`
+5. When sandbox mode is enabled, keep OpenClaw state on host bind mounts, not named volumes:
+   - recommended:
+     - `/home/node/.openclaw:/home/node/.openclaw`
+     - `/home/node/.openclaw/workspace:/home/node/.openclaw/workspace`
+   - avoid:
+     - named volumes at `/home/node/.openclaw` or `/home/node/.openclaw/workspace`
+   - why:
+     - sibling sandbox containers mount host paths, not the gateway container's private named-volume namespace
+     - if the gateway keeps `.openclaw` only inside named volumes, sandbox `/workspace` can come up empty and mirrored files such as `skills/*/SKILL.md`, `MEMORY.md`, and sandbox state files will be missing
 
 These are prerequisites. They are not repeated renames and do not change container names.
 
@@ -184,6 +193,7 @@ These are prerequisites. They are not repeated renames and do not change contain
    - treat tag restoration as temporary. Refresh the sandbox image properly once the host can build or pull it safely.
 7. Ensure Compose sandbox prerequisites remain enabled:
    - `docker compose -f /data/compose/openclaw/docker-compose.yml config | rg '/var/run/docker.sock|group_add|DOCKER_GID'`
+   - `docker compose -f /data/compose/openclaw/docker-compose.yml config | rg '/home/node/.openclaw:/home/node/.openclaw|/home/node/.openclaw/workspace:/home/node/.openclaw/workspace'`
 8. Recreate gateway on the rebuilt local tag:
    - `docker compose -f /data/compose/openclaw/docker-compose.yml up -d --force-recreate openclaw-gateway`
 9. Sync external plugin versions to the upgraded host contract:
@@ -252,11 +262,20 @@ Run all checks before declaring success:
    - `docker compose -f /data/compose/openclaw/docker-compose.yml config | rg '/var/run/docker.sock|group_add'`
 4. Confirm gateway user can access socket:
    - `docker compose -f /data/compose/openclaw/docker-compose.yml exec -T openclaw-gateway sh -lc 'docker ps >/dev/null && echo sandbox-prereq-ok'`
-5. Confirm effective runtime is sandboxed:
+5. Confirm host-path parity for sandbox workspaces:
+   - `docker inspect openclaw-openclaw-gateway-1 --format '{{json .Mounts}}'`
+   - expected bind mounts include:
+     - `/home/node/.openclaw -> /home/node/.openclaw`
+     - `/home/node/.openclaw/workspace -> /home/node/.openclaw/workspace`
+   - avoid deployments where these destinations come from named volumes when sandbox mode is on
+6. Confirm effective runtime is sandboxed:
    - `docker compose -f /data/compose/openclaw/docker-compose.yml run --rm -T openclaw-cli sandbox explain`
    - expected output includes:
      - `runtime: sandboxed`
      - `mode: all` (or your configured `non-main` session behavior)
+7. If a sandboxed session reports empty `/workspace` or missing mirrored skill files, inspect the host sandbox directory directly:
+   - `find /home/node/.openclaw/sandboxes -maxdepth 2 -mindepth 1 | sed -n '1,80p'`
+   - if this tree is empty while the gateway container shows files under the same path, fix the Compose mounts before debugging skills or tools
 
 If any sandbox prerequisite fails, treat the update as incomplete.
 
