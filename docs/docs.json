@@ -1035,6 +1035,7 @@
                 "group": "Maintenance",
                 "pages": [
                   "install/updating",
+                  "install/llm-provider-sop",
                   {
                     "group": "Migrating",
                     "pages": [
